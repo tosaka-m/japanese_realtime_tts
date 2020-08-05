@@ -1,0 +1,7 @@
+*~
+*.yml
+__pycache__
+*.ipynb
+build/
+log/
+\#*
