@@ -1,3 +1,2 @@
-src/jrtts/GlowTTS/Utils/word_index_dict.txt
-src/jrtts/GlowTTS/Networks/monotonic_align/core.pyx
-
+include README.md
+include src/jrtts/GlowTTS/Utils/word_index_dict.txt
