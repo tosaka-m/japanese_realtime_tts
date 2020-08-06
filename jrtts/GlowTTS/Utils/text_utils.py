@@ -1,9 +1,11 @@
 #coding:utf-8
+import os
+import os.path as osp
 import pandas as pd
-import numpy as np
 
+DEFAULT_DICT_PATH = osp.join(osp.dirname(__file__), 'word_index_dict.txt')
 class TextCleaner:
-    def __init__(self, word_index_dict_path):
+    def __init__(self, word_index_dict_path=DEFAULT_DICT_PATH):
         self.word_index_dictionary = self.load_dictionary(word_index_dict_path)
         self.pad_index = 0
 

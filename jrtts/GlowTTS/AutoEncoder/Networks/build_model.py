@@ -2,12 +2,11 @@ import os
 import os.path as osp
 
 import torch
-from .networks import OrigDiscriminator, OrigDiscriminator1d
-from .pytorch_unet.unet import UNet
+from .networks import OrigDiscriminator, OrigDiscriminator1d, UNet
 
 def build_model(model="unet", use_pitch=False):
     if model == "unet":
-        model = UNet(n_channels=1, n_classes=1, pitch=use_pitch)
+        model = UNet(in_c=1, out_c=1, pitch=use_pitch)
         initialization(model)
         discriminators = [OrigDiscriminator(input_nc=1, n_layers=5),
                           OrigDiscriminator1d(input_nc=80, n_layers=5, ndf=256)]
