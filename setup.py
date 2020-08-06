@@ -1,9 +1,14 @@
-from setuptools import setup
+from setuptools import setup, Extension
 from Cython.Build import cythonize
 import numpy
 
-setup(
-    ext_modules = cythonize('src/jrtts/GlowTTS/Networks/monotonic_align/core.pyx'),
+extension = Extension(
+    name='monotonic_align',
+    sources=['src/jrtts/GlowTTS/Networks/monotonic_align/core.pyx'],
     include_dirs=[numpy.get_include()]
+    )
+
+setup(
+    ext_modules = cythonize(extension)
 )
 

@@ -6,7 +6,10 @@ https://opensource.org/licenses/mit-license.php
 
 import numpy as np
 import torch
-from .monotonic_align.core import maximum_path_c
+try:
+  from .monotonic_align.core import maximum_path_c
+except ModuleNotFoundError:
+  from monotonic_align import maximum_path_c
 
 
 def maximum_path(value, mask):
