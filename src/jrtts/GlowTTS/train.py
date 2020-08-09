@@ -5,9 +5,7 @@ import re
 import sys
 import yaml
 import shutil
-from glob import glob
 import numpy as np
-from sklearn.model_selection import train_test_split
 import torch
 import wandb
 import click
@@ -112,16 +110,11 @@ def main(config_path, test):
     return 0
 
 
-
 def get_data_path_list(train_path=None, val_path=None):
-    # train_path = "Data/nospace/jsut_train_list.txt"
-    # val_path = "Data/nospace/jsut_val_list.txt"
-    # train_path = "Data/nospace/train_list.txt"
-    # val_path = "Data/nospace/val_list.txt"
     if train_path is None:
-        train_path = "Data/nospace/mzk_train_list.txt"
+        train_path = "Data/train_list.txt"
     if val_path is None:
-        val_path = "Data/nospace/mzk_val_list.txt"
+        val_path = "Data/val_list.txt"
 
     with open(train_path, 'r') as f:
         train_list = f.readlines()
