@@ -40,7 +40,7 @@ def main(config_path, test):
     if test:
         wandb.init(project="test", config=config)
     else:
-        wandb.init(project="glowtts", config=config)
+        wandb.init(project="glowtts-jsut", config=config)
         file_handler = logging.FileHandler(osp.join(log_dir, 'train.log'))
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(logging.Formatter('%(levelname)s:%(asctime)s: %(message)s'))

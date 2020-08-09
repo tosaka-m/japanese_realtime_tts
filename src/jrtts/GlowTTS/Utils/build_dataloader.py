@@ -148,7 +148,7 @@ class Collater(object):
             waves = [b[0] for b in batch]
             return texts, input_lengths, mels, output_lengths, f0s, speaker_ids, paths, waves
 
-        return texts, input_lengths, mels, output_lengths, f0s, speaker_ids, paths
+        return texts, input_lengths, mels, output_lengths, f0s, speaker_ids
 
 def build_dataloader(path_list,
                      validation=False,
