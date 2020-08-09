@@ -409,7 +409,8 @@ class FlowGenerator(nn.Module):
                                       x, x_lengths, y=None, y_lengths=None,
                                       g=None, noise_scale=1., length_scale=1.,
                                       pitch=None):
-        if g is not None:
+
+        if self.use_speaker_embedding and (g is not None):
             g_enc = self.emb_g(mel=y.transpose(1, 2), spk_id=g.unsqueeze(1))
             g_enc = F.normalize(g_enc)
 
