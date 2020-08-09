@@ -72,7 +72,7 @@ class FilePathDataset(torch.utils.data.Dataset):
             text_tensor = self._concat_data(text_tensor, ext_text_tensor, data_type='text')
             f0_tensor = self._concat_data(f0_tensor, ext_f0_tensor, data_type='f0')
 
-        return wave_tensor, mel_tensor, text_tensor, f0_tensor, speaker_id
+        return wave_tensor, mel_tensor, text_tensor, f0_tensor, speaker_id, data[0]
 
     def _load_tensor(self, data):
         wave_path, text, speaker_id = data
@@ -132,7 +132,8 @@ class Collater(object):
         output_lengths = torch.zeros(batch_size).long()
         f0s = torch.zeros((batch_size, max_mel_length)).float()
         speaker_ids = torch.zeros((batch_size)).long()
-        for bid, (_, mel, text, f0, speaker_id) in enumerate(batch):
+        paths = ['' for _ in range(batch_size)]
+        for bid, (_, mel, text, f0, speaker_id, path) in enumerate(batch):
             mel_size = mel.size(1)
             text_size = text.size(0)
             mels[bid, :, :mel_size] = mel
@@ -141,12 +142,13 @@ class Collater(object):
             output_lengths[bid] = mel_size
             speaker_ids[bid] = speaker_id
             f0s[bid, :mel_size] = f0
+            paths[bid] = path
 
         if self.return_wave:
             waves = [b[0] for b in batch]
-            return texts, input_lengths, mels, output_lengths, f0s, speaker_ids, waves
+            return texts, input_lengths, mels, output_lengths, f0s, speaker_ids, paths, waves
 
-        return texts, input_lengths, mels, output_lengths, f0s, speaker_ids
+        return texts, input_lengths, mels, output_lengths, f0s, speaker_ids, paths
 
 def build_dataloader(path_list,
                      validation=False,
