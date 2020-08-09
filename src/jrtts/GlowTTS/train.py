@@ -70,6 +70,7 @@ def main(config_path, test):
     model.to(device)
     scheduler_params = {
         "max_lr": float(config['optimizer_params'].get('lr', 5e-4)),
+        "pct_start": float(config['optimizer_params'].get('pct_start', 0.05)),
         "epochs": epochs,
         "steps_per_epoch": len(train_dataloader),
     }
