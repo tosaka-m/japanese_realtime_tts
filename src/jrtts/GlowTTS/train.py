@@ -91,7 +91,7 @@ def main(config_path, test):
                              logger=logger)
     epochs = config.get('epochs', 100)
     if config.get('pretrained_model', '') != '':
-        trainer.load_checkpoint(config['pretrained_model'], load_only_params=False)
+        trainer.load_checkpoint(config['pretrained_model'], load_only_params=True)
 
     for epoch in range(1, epochs+1):
         train_results = trainer._train_epoch()
