@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from scipy.signal import kaiser
 
 
-def design_prototype_filter(taps=62, cutoff_ratio=0.15, beta=9.0):
+def design_prototype_filter(taps=62, cutoff_ratio=0.14198, beta=9.0):
     """Design prototype filter for PQMF.
 
     This method is based on `A Kaiser window approach for the design of prototype
@@ -58,7 +58,7 @@ class PQMF(torch.nn.Module):
 
     """
 
-    def __init__(self, subbands=4, taps=62, cutoff_ratio=0.15, beta=9.0):
+    def __init__(self, subbands=4, taps=62, cutoff_ratio=0.14198, beta=9.0):
         """Initilize PQMF module.
 
         Args:
@@ -77,11 +77,11 @@ class PQMF(torch.nn.Module):
         for k in range(subbands):
             h_analysis[k] = 2 * h_proto * np.cos(
                 (2 * k + 1) * (np.pi / (2 * subbands)) *
-                (np.arange(taps + 1) - ((taps - 1) / 2)) +
+                (np.arange(taps + 1) - (taps / 2)) +
                 (-1) ** k * np.pi / 4)
             h_synthesis[k] = 2 * h_proto * np.cos(
                 (2 * k + 1) * (np.pi / (2 * subbands)) *
-                (np.arange(taps + 1) - ((taps - 1) / 2)) -
+                (np.arange(taps + 1) - (taps / 2)) -
                 (-1) ** k * np.pi / 4)
 
         # convert to tensor
