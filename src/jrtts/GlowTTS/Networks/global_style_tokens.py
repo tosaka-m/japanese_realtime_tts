@@ -69,7 +69,7 @@ class ExtraEmbedding(nn.Module):
     def forward(self, mel, spk_id):
         assert(mel.shape[-1] == self.nmels)
         assert(len(spk_id.shape) == 2)
-        if self.random_mel_slice:
+        if (self.training and self.random_mel_slice):
             random_slice_length = mel.shape[1] // 4
             l_rand = np.random.randint(0, random_slice_length // 2)
             r_rand = np.random.randint(1, random_slice_length // 2)

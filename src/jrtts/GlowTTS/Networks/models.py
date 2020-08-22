@@ -221,7 +221,6 @@ class FlowGenerator(nn.Module):
                  n_block_layers=4,
                  p_dropout_dec=0.,
                  n_speakers=0,
-                 gin_channels=0,
                  n_split=4,
                  n_sqz=1,
                  sigmoid_scale=False,
@@ -232,9 +231,12 @@ class FlowGenerator(nn.Module):
                  hidden_channels_dec=None,
                  prenet=False,
                  pitch_emb_dim=32,
+                 speaker_emb_dim=0,
+                 gst_emb_dim=0,
                  **kwargs):
 
         super().__init__()
+
         self.n_vocab = n_vocab
         self.hidden_channels = hidden_channels
         self.filter_channels = filter_channels
@@ -250,7 +252,7 @@ class FlowGenerator(nn.Module):
         self.n_block_layers = n_block_layers
         self.p_dropout_dec = p_dropout_dec
         self.n_speakers = n_speakers
-        self.gin_channels = gin_channels
+        self.gin_channels = speaker_emb_dim + gst_emb_dim + pitch_emb_dim
         self.n_split = n_split
         self.n_sqz = n_sqz
         self.sigmoid_scale = sigmoid_scale
@@ -276,7 +278,7 @@ class FlowGenerator(nn.Module):
             block_length=block_length,
             mean_only=mean_only,
             prenet=prenet,
-            gin_channels=gin_channels - self.pitch_emb_dim,
+            gin_channels=self.gin_channels - pitch_emb_dim,
             use_pitch_embedding=(self.pitch_emb_dim > 0)
         )
 
@@ -291,7 +293,7 @@ class FlowGenerator(nn.Module):
             n_split=n_split,
             n_sqz=n_sqz,
             sigmoid_scale=sigmoid_scale,
-            gin_channels=gin_channels)
+            gin_channels=self.gin_channels)
 
         self.use_speaker_embedding = (n_speakers > 1)
         if self.use_speaker_embedding:
@@ -422,7 +424,7 @@ class FlowGenerator(nn.Module):
         y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, y_max_length), 1).to(x_mask.dtype)
         attn_mask = torch.unsqueeze(x_mask, -1) * torch.unsqueeze(y_mask, 2)
 
-        g_dec = self._get_g_dec(x_pitch, pitch, pitch_bias, g_enc, attn)
+        g_dec = self._get_g_dec(x_pitch, pitch, pitch_bias, g_enc)
         z, logdet = self.decoder(y, y_mask, g=g_dec, reverse=False)
         with torch.no_grad():
             x_s_sq_r = torch.exp(-2 * x_logs)
@@ -433,13 +435,12 @@ class FlowGenerator(nn.Module):
             logp = logp1 + logp2 + logp3 + logp4 # [b, t, t']
             attn = monotonic_align.maximum_path(logp, attn_mask.squeeze(1)).unsqueeze(1).detach()
 
-        mean_pitch = self.pitch_emb.meaned_pitch(pitch, attn).transpose(1, 2)
-        mean_pitch *= x_mask
-
-        # gen
-        pitch = self.pitch_emb.pitch_expansion(x_pitch.squeeze(1), attn)
-        pitch_emb = self.pitch_emb(pitch)
-        g_dec = torch.cat([g_enc.expand(-1, -1, pitch_emb.size(-1)), pitch_emb], dim=1)
+        if pitch is not None:
+            mean_pitch = self.pitch_emb.meaned_pitch(pitch, attn).transpose(1, 2)
+            mean_pitch *= x_mask
+            # gen
+            pitch = self.pitch_emb.pitch_expansion(x_pitch.squeeze(1), attn)
+        g_dec = self._get_g_dec(x_pitch, pitch, pitch_bias, g_enc)
 
         y_m = torch.matmul(attn.squeeze(1).transpose(1, 2), x_m.transpose(1, 2)).transpose(1, 2) # [b, t', t], [b, t, d] -> [b, d, t']
         y_logs = torch.matmul(attn.squeeze(1).transpose(1, 2), x_logs.transpose(1, 2)).transpose(1, 2) # [b, t', t], [b, t, d] -> [b, d, t']
