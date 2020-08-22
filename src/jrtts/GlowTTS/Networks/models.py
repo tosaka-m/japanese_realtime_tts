@@ -230,9 +230,11 @@ class FlowGenerator(nn.Module):
                  hidden_channels_enc=None,
                  hidden_channels_dec=None,
                  prenet=False,
-                 pitch_emb_dim=32,
+                 gin_channels=0,
+                 pitch_emb_dim=0,
                  speaker_emb_dim=0,
                  gst_emb_dim=0,
+                 n_extra_layers=0,
                  **kwargs):
 
         super().__init__()
@@ -252,7 +254,7 @@ class FlowGenerator(nn.Module):
         self.n_block_layers = n_block_layers
         self.p_dropout_dec = p_dropout_dec
         self.n_speakers = n_speakers
-        self.gin_channels = speaker_emb_dim + gst_emb_dim + pitch_emb_dim
+        self.gin_channels = gin_channels or (speaker_emb_dim + gst_emb_dim)
         self.n_split = n_split
         self.n_sqz = n_sqz
         self.sigmoid_scale = sigmoid_scale
@@ -278,7 +280,7 @@ class FlowGenerator(nn.Module):
             block_length=block_length,
             mean_only=mean_only,
             prenet=prenet,
-            gin_channels=self.gin_channels - pitch_emb_dim,
+            gin_channels=self.gin_channels,
             use_pitch_embedding=(self.pitch_emb_dim > 0)
         )
 
@@ -293,12 +295,14 @@ class FlowGenerator(nn.Module):
             n_split=n_split,
             n_sqz=n_sqz,
             sigmoid_scale=sigmoid_scale,
-            gin_channels=self.gin_channels)
+            gin_channels=self.gin_channels + self.pitch_emb_dim)
 
         self.use_speaker_embedding = (n_speakers > 1)
         if self.use_speaker_embedding:
             # nn.init.uniform_(self.emb_g.weight, -0.1, 0.1)
-            self.emb_g = ExtraEmbedding(n_speakers=n_speakers)
+            self.emb_g = ExtraEmbedding(
+                spk_emb_dim=speaker_emb_dim, gst_emb_dim=gst_emb_dim,
+                n_speakers=n_speakers, n_extra_layers=n_extra_layers, gin_channels=self.gin_channels)
 
         self.use_pitch_embedding = (self.pitch_emb_dim > 0)
         if self.use_pitch_embedding:
@@ -382,7 +386,6 @@ class FlowGenerator(nn.Module):
             else:
                 assert(pitch is not None)
             pitch_emb = self.pitch_emb(pitch)
-            print('pitch_emb shape', pitch_emb.shape)
         else:
             pitch_emb = torch.zeros((g_enc.size(0), 0, 1))
 
