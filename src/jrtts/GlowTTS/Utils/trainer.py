@@ -150,6 +150,12 @@ class Trainer(object):
         mask = torch.gt(mask+1, lengths.unsqueeze(1))
         return mask
 
+    def _get_lr(self):
+        for param_group in self.optimizer.param_groups:
+            lr = param_group['lr']
+            break
+        return lr
+
 class GlowTTSTrainer(Trainer):
     def _train_epoch(self):
         train_losses = defaultdict(list)
@@ -180,6 +186,7 @@ class GlowTTSTrainer(Trainer):
             total_grad_norm = self.get_gradient_norm(self.model)
             train_losses['train/total_gn'].append(total_grad_norm)
         train_losses = {key: np.mean(value) for key, value in train_losses.items()}
+        train_losses['train/learning_rate'] = self._get_lr()
         return train_losses
 
     @torch.no_grad()
