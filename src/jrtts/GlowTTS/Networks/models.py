@@ -331,7 +331,7 @@ class FlowGenerator(nn.Module):
         ### decoding
         if gen:
             attn = commons.generate_path(w_ceil.squeeze(1), attn_mask.squeeze(1)).unsqueeze(1)
-            g_dec = self._get_g_dec(x_pitch, pitch, pitch_bias, g_enc, attn, gen=gen)
+            g_dec = self._get_g_dec(x_pitch, pitch, pitch_bias, g_enc, attn)
 
             y_m = torch.matmul(attn.squeeze(1).transpose(1, 2),
                                x_m.transpose(1, 2)).transpose(1, 2) # [b, t', t], [b, t, d] -> [b, d, t']
@@ -345,8 +345,7 @@ class FlowGenerator(nn.Module):
             g_dec = self._get_g_dec(x_pitch=None,
                                     pitch=pitch,
                                     pitch_bias=0,
-                                    g_enc=g_enc,
-                                    gen=gen)
+                                    g_enc=g_enc)
             z, logdet = self.decoder(y, y_mask, g=g_dec, reverse=False)
             with torch.no_grad():
                 x_s_sq_r = torch.exp(-2 * x_logs)
@@ -370,16 +369,16 @@ class FlowGenerator(nn.Module):
             return (z, y_m, y_logs, logdet), attn, logw, logw_, x_m, x_logs, mean_pitch, x_pitch
 
 
-    def _get_g_dec(self, x_pitch, pitch=None, pitch_bias=0, g_enc=None, attn=None, gen=True):
+    def _get_g_dec(self, x_pitch, pitch=None, pitch_bias=0, g_enc=None, attn=None):
         if not (self.use_pitch_embedding or self.use_speaker_embedding):
             return None
 
         if self.use_pitch_embedding:
-            if gen:
-                if pitch is not None:
-                    x_pitch = pitch
+            if attn is not None:
                 x_pitch += pitch_bias
                 pitch = self.pitch_emb.pitch_expansion(x_pitch.squeeze(1), attn)
+            else:
+                assert(pitch is not None)
             pitch_emb = self.pitch_emb(pitch)
             print('pitch_emb shape', pitch_emb.shape)
         else:
@@ -408,21 +407,22 @@ class FlowGenerator(nn.Module):
     def forward_with_target_alignment(self,
                                       x, x_lengths, y=None, y_lengths=None,
                                       g=None, noise_scale=1., length_scale=1.,
+                                      pitch_bias=0.,
                                       pitch=None):
 
         if self.use_speaker_embedding and (g is not None):
             g_enc = self.emb_g(mel=y.transpose(1, 2), spk_id=g.unsqueeze(1))
             g_enc = F.normalize(g_enc)
+        else:
+            g_enc = None
 
         x_m, x_logs, logw, x_mask, x_pitch = self.encoder(x, x_lengths, g=g_enc)
         y_max_length = y.size(2)
         y, y_lengths, y_max_length = self.preprocess(y, y_lengths, y_max_length)
         y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, y_max_length), 1).to(x_mask.dtype)
         attn_mask = torch.unsqueeze(x_mask, -1) * torch.unsqueeze(y_mask, 2)
-        pitch_emb = self.pitch_emb(pitch)
 
-        # inv
-        g_dec = torch.cat([g_enc.expand(-1, -1, pitch_emb.size(-1)), pitch_emb], dim=1)
+        g_dec = self._get_g_dec(x_pitch, pitch, pitch_bias, g_enc, attn)
         z, logdet = self.decoder(y, y_mask, g=g_dec, reverse=False)
         with torch.no_grad():
             x_s_sq_r = torch.exp(-2 * x_logs)
