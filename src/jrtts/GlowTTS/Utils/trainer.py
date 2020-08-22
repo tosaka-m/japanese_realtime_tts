@@ -173,6 +173,7 @@ class GlowTTSTrainer(Trainer):
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), 5)
             self.optimizer.step()
+            self.scheduler.step()
             train_losses["train/mle"].append(loss_mle.item())
             train_losses["train/length"].append(loss_length.item())
             train_losses["train/loss"].append(loss.item())
