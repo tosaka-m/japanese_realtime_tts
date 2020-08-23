@@ -150,6 +150,12 @@ class Trainer(object):
         mask = torch.gt(mask+1, lengths.unsqueeze(1))
         return mask
 
+    def _get_lr(self):
+        for param_group in self.optimizer.param_groups:
+            lr = param_group['lr']
+            break
+        return lr
+
 class GlowTTSTrainer(Trainer):
     def _train_epoch(self):
         train_losses = defaultdict(list)
@@ -164,18 +170,23 @@ class GlowTTSTrainer(Trainer):
                              pitch=f0s)
             loss_mle = self.critic['mle'](z, y_mean, y_logstd, logdet, mel_target_lengths)
             loss_length = torch.sum((logw - logw_)**2) / torch.sum(text_lengths)
-            loss_pitch = torch.sum((mean_pitch - x_pitch)**2) / torch.sum(text_lengths)
-            loss = loss_mle + loss_length + loss_pitch
+            loss = loss_mle + loss_length
+            if x_pitch is not None:
+                loss_pitch = torch.sum((mean_pitch - x_pitch)**2) / torch.sum(text_lengths)
+                loss += loss_pitch
+                train_losses["train/pitch"].append(loss_pitch.item())
+
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), 5)
             self.optimizer.step()
+            self.scheduler.step()
             train_losses["train/mle"].append(loss_mle.item())
             train_losses["train/length"].append(loss_length.item())
-            train_losses["train/pitch"].append(loss_pitch.item())
             train_losses["train/loss"].append(loss.item())
             total_grad_norm = self.get_gradient_norm(self.model)
             train_losses['train/total_gn'].append(total_grad_norm)
         train_losses = {key: np.mean(value) for key, value in train_losses.items()}
+        train_losses['train/learning_rate'] = self._get_lr()
         return train_losses
 
     @torch.no_grad()
@@ -193,12 +204,15 @@ class GlowTTSTrainer(Trainer):
                              pitch=f0s)
             loss_mle = self.critic['mle'](z, y_mean, y_logstd, logdet, mel_target_lengths)
             loss_length = torch.sum((logw - logw_)**2) / torch.sum(text_lengths)
-            loss_pitch = torch.sum((mean_pitch - x_pitch)**2) / torch.sum(text_lengths)
 
-            loss = loss_mle + loss_length + loss_pitch
+            loss = loss_mle + loss_length
+            if x_pitch is not None:
+                loss_pitch = torch.sum((mean_pitch - x_pitch)**2) / torch.sum(text_lengths)
+                loss += loss_pitch
+                eval_losses["eval/pitch"].append(loss_pitch.item())
+
             eval_losses["eval/mle"].append(loss_mle.item())
             eval_losses["eval/length"].append(loss_length.item())
-            eval_losses["eval/pitch"].append(loss_pitch.item())
             eval_losses["eval/loss"].append(loss.item())
             if eval_steps_per_epoch == 1:
                 eval_images["eval/image"].append(self.get_image(

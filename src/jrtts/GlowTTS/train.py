@@ -5,9 +5,7 @@ import re
 import sys
 import yaml
 import shutil
-from glob import glob
 import numpy as np
-from sklearn.model_selection import train_test_split
 import torch
 import wandb
 import click
@@ -42,7 +40,7 @@ def main(config_path, test):
     if test:
         wandb.init(project="test", config=config)
     else:
-        wandb.init(project="glowtts", config=config)
+        wandb.init(project="glowtts-jsut", config=config)
         file_handler = logging.FileHandler(osp.join(log_dir, 'train.log'))
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(logging.Formatter('%(levelname)s:%(asctime)s: %(message)s'))
@@ -72,6 +70,7 @@ def main(config_path, test):
     model.to(device)
     scheduler_params = {
         "max_lr": float(config['optimizer_params'].get('lr', 5e-4)),
+        "pct_start": float(config['optimizer_params'].get('pct_start', 0.05)),
         "epochs": epochs,
         "steps_per_epoch": len(train_dataloader),
     }
@@ -92,7 +91,7 @@ def main(config_path, test):
                              logger=logger)
     epochs = config.get('epochs', 100)
     if config.get('pretrained_model', '') != '':
-        trainer.load_checkpoint(config['pretrained_model'], load_only_params=False)
+        trainer.load_checkpoint(config['pretrained_model'], load_only_params=True)
 
     for epoch in range(1, epochs+1):
         train_results = trainer._train_epoch()
@@ -112,16 +111,11 @@ def main(config_path, test):
     return 0
 
 
-
 def get_data_path_list(train_path=None, val_path=None):
-    # train_path = "Data/nospace/jsut_train_list.txt"
-    # val_path = "Data/nospace/jsut_val_list.txt"
-    # train_path = "Data/nospace/train_list.txt"
-    # val_path = "Data/nospace/val_list.txt"
     if train_path is None:
-        train_path = "Data/nospace/mzk_train_list.txt"
+        train_path = "Data/train_list.txt"
     if val_path is None:
-        val_path = "Data/nospace/mzk_val_list.txt"
+        val_path = "Data/val_list.txt"
 
     with open(train_path, 'r') as f:
         train_list = f.readlines()

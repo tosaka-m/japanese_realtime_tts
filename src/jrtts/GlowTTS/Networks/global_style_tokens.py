@@ -53,23 +53,32 @@ class PitchEmbedding(nn.Module):
 class ExtraEmbedding(nn.Module):
     def __init__(self,
                  n_speakers=120,
-                 spk_emb_dim=128-32,
+                 spk_emb_dim=128,
                  gst_emb_dim=128,
                  nmels=80,
+                 n_extra_layers=0,
+                 gin_channels=None,
                  random_mel_slice=True,
                  ):
         super(ExtraEmbedding, self).__init__()
         self.nmels = nmels
         self.n_speakers = n_speakers
+        self.spk_emb_dim = spk_emb_dim
+        self.gst_emb_dim = gst_emb_dim
+        self.gin_channels = gin_channels or (spk_emb_dim + gst_emb_dim)
         self.gst = GST(stl_token_embedding_size=gst_emb_dim) #gst_input.shape must be (b, mlen, nmels)
         self.spk_embedding = nn.Embedding(n_speakers, spk_emb_dim)
         self.random_mel_slice = random_mel_slice
+        self.n_extra_layers = n_extra_layers
+        self.dropout_p = 0.25
+        if self.n_extra_layers > 0:
+            self.extra_layers = self._get_extra_layers()
         self.initialize()
 
     def forward(self, mel, spk_id):
         assert(mel.shape[-1] == self.nmels)
         assert(len(spk_id.shape) == 2)
-        if self.random_mel_slice:
+        if (self.training and self.random_mel_slice):
             random_slice_length = mel.shape[1] // 4
             l_rand = np.random.randint(0, random_slice_length // 2)
             r_rand = np.random.randint(1, random_slice_length // 2)
@@ -77,7 +86,10 @@ class ExtraEmbedding(nn.Module):
 
         style_emb = self.gst(mel)
         spk_emb = self.spk_embedding(spk_id)
-        g = torch.cat([spk_emb, style_emb], dim=2).transpose(1, 2)
+        g = torch.cat([spk_emb, style_emb], dim=2)
+        if self.n_extra_layers > 0:
+            g = self.extra_layers(g)
+        g = g.transpose(1, 2)
         return g
 
     def initialize(self):
@@ -88,6 +100,12 @@ class ExtraEmbedding(nn.Module):
             else:
                 nn.init.uniform_(param, -0.001, 0.001)
 
+    def _get_extra_layers(self):
+        channels = [self.spk_emb_dim + self.gst_emb_dim] + [self.gin_channels] * self.n_extra_layers
+        extra_layers = [nn.Sequential(nn.Linear(in_c, out_c), nn.ReLU(), nn.Dropout(self.dropout_p)) for in_c, out_c in zip(channels[:-1], channels[1:])]
+        extra_layers += [nn.Linear(channels[-1], self.gin_channels)]
+        extra_layers = nn.Sequential(*extra_layers)
+        return extra_layers
 
 class ReferenceEncoder(nn.Module):
     '''
@@ -221,7 +239,7 @@ class GST(nn.Module):
                  stl_num_heads=4
     ):
         super().__init__()
-        self.encoder = ReferenceEncoder()
+        self.encoder = ReferenceEncoder(ref_enc_gru_size=stl_token_embedding_size//2)
         self.stl = STL(
             token_embedding_size=stl_token_embedding_size,
             token_num=stl_token_num,

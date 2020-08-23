@@ -179,6 +179,7 @@ class SEGANTrainer(object):
             train_losses['train/gen-prob1'].append(reduced_gen_mean_prob1)
 
         train_losses = {k: np.mean(value) for k, value in train_losses.items()}
+        train_losses['train/learning_rate'] = self._get_lr()
         return train_losses
 
     def validation(self, dataloader):
@@ -244,3 +245,10 @@ class SEGANTrainer(object):
                     model_states[key].copy_(val)
             except:
                 print("not exist ", key)
+
+    def _get_lr(self):
+        for param_group in self.optimizer.optimizers['generator'].param_groups:
+            lr = param_group['lr']
+            break
+        return lr
+
