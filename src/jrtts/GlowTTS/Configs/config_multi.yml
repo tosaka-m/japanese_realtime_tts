@@ -1,8 +1,8 @@
-log_dir: "logs/20200822"
+log_dir: "logs/20200824"
 save_freq: 50
 device: "cuda"
 epochs: 500
-batch_size: 48
+batch_size: 64
 train_data: "Data/multi_train_list.txt"
 val_data: "Data/multi_val_list.txt"
 pretrained_model: "logs/pretrained_models/pretrained.pth"
@@ -42,4 +42,4 @@ model_params:
   gin_channels: 256
   n_extra_layers: 1
 optimizer_params:
-  lr: 0.0005
+  lr: 0.0002

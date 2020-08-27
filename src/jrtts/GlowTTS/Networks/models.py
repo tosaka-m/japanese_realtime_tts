@@ -337,7 +337,8 @@ class FlowGenerator(nn.Module):
         ### decoding
         if gen:
             attn = commons.generate_path(w_ceil.squeeze(1), attn_mask.squeeze(1)).unsqueeze(1)
-            g_dec = self._get_g_dec(x_pitch, pitch, pitch_bias, g_enc, attn)
+            _x_pitch = x_pitch if pitch is None else pitch
+            g_dec = self._get_g_dec(_x_pitch, pitch, pitch_bias, g_enc, attn)
 
             y_m = torch.matmul(attn.squeeze(1).transpose(1, 2),
                                x_m.transpose(1, 2)).transpose(1, 2) # [b, t', t], [b, t, d] -> [b, d, t']
