@@ -178,6 +178,7 @@ class SEGANTrainer(object):
             train_losses['train/gt-prob1'].append(reduced_gt_mean_prob1)
             train_losses['train/gen-prob1'].append(reduced_gen_mean_prob1)
 
+            self.optimizer.scheduler()
         train_losses = {k: np.mean(value) for k, value in train_losses.items()}
         train_losses['train/learning_rate'] = self._get_lr()
         return train_losses
@@ -228,6 +229,7 @@ class SEGANTrainer(object):
         for key, val in states.items():
             try:
                 if key not in model_states:
+                    print('%s is not in model' % key)
                     continue
                 if isinstance(val, nn.Parameter):
                     val = val.data

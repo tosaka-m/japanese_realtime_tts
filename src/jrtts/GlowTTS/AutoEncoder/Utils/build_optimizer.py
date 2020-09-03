@@ -4,10 +4,9 @@ import os.path as osp
 import numpy as np
 import torch
 from torch import nn
+from torch.optim import AdamW
 from torch.optim import Optimizer
-#from .RAdam.radam import RAdam
-import adabound
-from .lookahead.lookahead_pytorch import Lookahead
+
 
 class MultiOptimizer:
 
@@ -47,68 +46,39 @@ class MultiOptimizer:
         else:
             _ = [self.schedulers[key].step(*args) for key in self.keys]
 
-def build_optimizer(parameters_dict, lr=1e-4, method="adam", scheduler="step"):
-    if not isinstance(lr, dict):
-        lr = dict([(k, lr) for k in parameters_dict.keys()])
-
-    optim = dict([(key, _define_optimizer(params, lr[key], method)) \
-                   for key, params in parameters_dict.items()])
-
-    schedulers = dict([(key, _define_scheduler(opt, scheduler)) \
-                       for key, opt in optim.items()])
-
-    multi_optim = MultiOptimizer(optim, schedulers)
-
-    return multi_optim
-
-def _define_optimizer(params, lr=2e-4, method="adam"):
-    if method == "adam":
-        optimizer = torch.optim.AdamW(params, #RAdam(params,
-                                      lr=lr, #amsgrad=True,
-                                      weight_decay=1e-6)
-        #optimizer = Lookahead(optimizer)
-    elif method == "adabound":
-        optimizer = adabound.AdaBound(params, #RAdam(params,
-                                      lr=lr, final_lr=0.5,
-                                      amsbound=True,
-                                      weight_decay=1e-6)
-    elif method == "sgd":
-        print("use sgd")
-        optimizer = torch.optim.SGD(params,
-                                    lr=lr, momentum=0.9,
-                                    weight_decay=1e-6)
+def build_optimizer(parameters_dict, optimizer_params, scheduler_params):
+    opt_sch_pairs = {key: _define_optimizer({
+        'params': value,
+        'optimizer_params': optimizer_params[key],
+        'scheduler_params': scheduler_params[key]
+    }) for key, value in parameters_dict.items()}
+    optimizer = MultiOptimizer(
+        optimizers={key: value[0] for key, value in opt_sch_pairs.items()},
+        schedulers={key: value[1] for key, value in opt_sch_pairs.items()})
     return optimizer
 
-def _define_scheduler(optim, stype="lambda"):
+def _define_optimizer(params):
+    optimizer_params = params['optimizer_params']
+    sch_params = params['scheduler_params']
+    optimizer = AdamW(
+        params['params'],
+        lr=optimizer_params.get('lr', 1e-4),
+        weight_decay=optimizer_params.get('weight_decay', 1e-6),
+        betas=(0.9, 0.98),
+        eps=1e-9)
 
-    if stype.lower()=="validation":
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optim, factor=0.5, patience=5, min_lr=5e-5)
-    elif stype.lower()=="step":
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optim, milestones=[50000, 100000, 150000], gamma=0.5)
-    elif stype.lower()=="lambda":
-        warmup_iteration = 4000
-        steps = [100000]
-        lr_steps = [1, 0.1]
-        def lambda_fn(iteration):
-            if iteration < warmup_iteration:
-                lr = 1e-7 + lr_steps[0] * (iteration / warmup_iteration)
-            elif iteration < steps[0]:
-                lr = lr_steps[0] #min_lr + (max_lr - min_lr) * max(0, 1 - iteration / last_iteration)
-            else:
-                lr = lr_steps[1]
+    scheduler = _define_scheduler(optimizer, sch_params)
+    return optimizer, scheduler
 
-            if iteration in lr_steps:
-                print("LR decay", lr)
-            return lr
-        scheduler = torch.optim.lr_scheduler.LambdaLR(
-            optim, lr_lambda=lambda_fn)
-    elif stype.lower()=="const":
-        def lambda_fn(iteration):
-            return 1.
-        scheduler = torch.optim.lr_scheduler.LambdaLR(
-            optim, lr_lambda=lambda_fn)
+def _define_scheduler(optimizer, params):
+    print(params)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=params['max_lr'],
+        epochs=params['epochs'],
+        steps_per_epoch=params['steps_per_epoch'],
+        pct_start=0.05,
+        final_div_factor=2)
 
     return scheduler
 

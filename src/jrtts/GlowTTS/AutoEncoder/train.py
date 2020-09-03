@@ -72,16 +72,32 @@ def main(config_path, test):
 
     generator, discriminator = build_model(
         model="unet",
-        use_pitch=dataset_config.get('use_pitch', False),
-        n_speakers=config.get('n_speakers', 0))
+        use_pitch=dataset_config.get('use_pitch', False))
+        #n_speakers=config.get('n_speakers', 0))
 
     generator.to(device)
     _ = [d.to(device) for d in discriminator]
-    lr = 5e-5
+
+    scheduler_params = {
+        "generator": {
+            "max_lr": float(config['optimizer_params'].get('lr', 5e-5)),
+            "epochs": epochs,
+            "steps_per_epoch": len(train_dataloader),
+        },
+        "discriminator": {
+            "max_lr": float(config['optimizer_params'].get('lr', 5e-5)) * 2,
+            "epochs": epochs,
+            "steps_per_epoch": len(train_dataloader),
+        }
+    }
+
     optimizer = build_optimizer(
         {"generator": generator.parameters(),
          "discriminator": list(discriminator[0].parameters()) + list(discriminator[1].parameters())},
-        lr=lr)
+        optimizer_params={"generator": {}, "discriminator": {}},
+        scheduler_params=scheduler_params
+    )
+
 
     critic = build_critic()
     trainer = SEGANTrainer(generator=generator,
@@ -92,9 +108,9 @@ def main(config_path, test):
                            use_pitch=dataset_config.get('use_pitch', False),
                            adv_weight=config.get('adv_weight', 0.2))
 
-    epochs = config.get('epochs', 100)
+
     if config.get('pretrained_model', '') != '':
-        trainer.load(config['pretrained_model'], optimizer=True)
+        trainer.load(config['pretrained_model'], optimizer=False)
 
     for epoch in range(1, epochs+1):
         train_results = trainer.train(train_dataloader)

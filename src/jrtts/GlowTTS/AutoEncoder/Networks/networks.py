@@ -101,36 +101,31 @@ class UpSample2d(nn.Module):
         return x
 
 class OrigDiscriminator(nn.Module):
-    def __init__(self, input_nc, ndf=64, n_layers=5, norm='sn', multi_input=False):
+    def __init__(self, input_nc, ndf=64, n_layers=5, norm='sn'):
         super(OrigDiscriminator, self).__init__()
-        self.multi_input = multi_input
+        if norm == 'sn':
+            conv_wrapper = lambda x: nn.utils.spectral_norm(x)
+        else:
+            conv_wrapper = lambda x: x
+
         model = [nn.ReflectionPad2d((2,2,1,1)),
-                 nn.utils.spectral_norm(
-                     nn.Conv2d(input_nc, ndf, kernel_size=(4, 5), stride=2,
-                               padding=0, bias=True)),
+                 conv_wrapper(nn.Conv2d(input_nc, ndf, kernel_size=(4, 5), stride=2,
+                                        padding=0, bias=True)),
                  nn.LeakyReLU(0.2, True)]
-        if multi_input:
-            self.multi_input_model = nn.ModuleList([
-                nn.Sequential(nn.ReflectionPad2d((1, 1, 1, 1)),
-                              nn.utils.spectral_norm(
-                                  nn.Conv2d(input_nc, ndf * (2**(i+1)), kernel_size=(3, 4), stride=(1, 2),
-                                            padding=0, bias=True)),
-                              nn.LeakyReLU(0.2, True)) for i in range(2)])
         for i in range(1, n_layers - 2):
             mult = 2 ** (i - 1)
             model += [nn.ReflectionPad2d(1),
-                      nn.utils.spectral_norm(
-                          nn.Conv2d(ndf * mult, ndf * mult * 2, kernel_size=(3, 4), stride=(1, 2),
-                                    padding=0, bias=True)),
+                      conv_wrapper(nn.Conv2d(ndf * mult, ndf * mult * 2, kernel_size=(3, 4), stride=(1, 2),
+                                             padding=0, bias=True)),
                       nn.LeakyReLU(0.2, True)]
 
         mult = 2 ** (n_layers - 2 - 1)
         model += [nn.ReflectionPad2d(1),
-                  nn.utils.spectral_norm(
-                  nn.Conv2d(ndf * mult, ndf * mult * 2, kernel_size=3, stride=2,
-                            padding=0, bias=True)),
+                  conv_wrapper(
+                      nn.Conv2d(ndf * mult, ndf * mult * 2, kernel_size=3, stride=2,
+                                padding=0, bias=True)),
                   nn.LeakyReLU(0.2, True)]
-        self.conv = nn.utils.spectral_norm(
+        self.conv = conv_wrapper(
             nn.Conv2d(ndf*mult*2, 1,
                       kernel_size=3, stride=1, padding=0, bias=False))
         self.model = nn.ModuleList(model)
@@ -191,36 +186,34 @@ class PhaseShuffle1d(nn.Module):
         return shuffled
 
 class OrigDiscriminator1d(nn.Module):
-    def __init__(self, input_nc=80, ndf=128, n_layers=5, norm='sn', multi_input=False):
+    def __init__(self, input_nc=80, ndf=128, n_layers=5, norm='sn'):
         super(OrigDiscriminator1d, self).__init__()
+        if norm == 'sn':
+            conv_wrapper = lambda x: nn.utils.spectral_norm(x)
+        else:
+            conv_wrapper = lambda x: x
+
         model = [nn.ReflectionPad1d(1),
-                 nn.utils.spectral_norm(
+                 conv_wrapper(
                      nn.Conv1d(input_nc, ndf, kernel_size=5, stride=2,
                                padding=0, bias=True)),
                  nn.LeakyReLU(0.2, True)]
-        if multi_input:
-            self.multi_input_model = nn.ModuleList([
-                nn.Sequential(nn.ReflectionPad1d(1),
-                              nn.utils.spectral_norm(
-                                  nn.Conv1d(input_nc // (2**(i+1)), ndf, kernel_size=5, stride=2,
-                                            padding=0, bias=True)),
-                              nn.LeakyReLU(0.2, True)) for i in range(2)])
 
         for i in range(1, n_layers - 2):
             mult = 2 ** (i - 1)
             model += [nn.ReflectionPad1d(1),
-                      nn.utils.spectral_norm(
+                      conv_wrapper(
                           nn.Conv1d(ndf * mult, ndf * mult * 2, kernel_size=4, stride=2,
                                     padding=0, bias=True)),
                       nn.LeakyReLU(0.2, True)]
 
         mult = 2 ** (n_layers - 2 - 1)
         model += [nn.ReflectionPad1d(1),
-                  nn.utils.spectral_norm(
-                  nn.Conv1d(ndf * mult, ndf * mult, kernel_size=4, stride=2,
+                  conv_wrapper(
+                      nn.Conv1d(ndf * mult, ndf * mult, kernel_size=4, stride=2,
                             padding=0, bias=True)),
                   nn.LeakyReLU(0.2, True)]
-        self.conv = nn.utils.spectral_norm(
+        self.conv = conv_wrapper(
             nn.Conv1d(ndf * mult, 1, kernel_size=3, stride=1, padding=0, bias=False))
 
         self.model = nn.ModuleList(model)
