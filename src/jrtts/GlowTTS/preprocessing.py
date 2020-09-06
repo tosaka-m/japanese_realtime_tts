@@ -15,7 +15,7 @@ import soundfile as sf
 
 @click.command()
 @click.option('--config_path', '-p', default='Configs/config.yml')
-@click.option('--filelists', '-f', default=["Data/train_list.txt"], multiple=True)
+@click.option('--filelists', '-f', default=["Data/train_list.txt", "Data/val_list.txt"], multiple=True)
 @click.option('--use_pitch', is_flag=True)
 @click.option('--out_dir', default='Data/processed')
 def main(config_path, filelists, use_pitch, out_dir):
@@ -25,10 +25,10 @@ def main(config_path, filelists, use_pitch, out_dir):
         config = yaml.safe_load(f)
     with open(config_path) as f:
         update_config = yaml.safe_load(f)
-        config.update(update_config)
+    config.update(update_config)
 
     dataset_params = config['dataset_params']
-    sr = dataset_params['sampling_rate']
+    sr = dataset_params['sr']
     to_melspec = torchaudio.transforms.MelSpectrogram(
         n_fft=dataset_params['n_fft'],
         win_length=dataset_params['win_length'],
@@ -89,10 +89,10 @@ def preprocess(path, outpath, to_melspec, sr, use_pitch=True):
     if use_pitch:
         f0 = get_f0(rewav.numpy(), sr, frame_period=1000*hop_length/sr)
         f0 = torch.from_numpy(f0).float()
+        assert(remel.shape[1] == f0.shape[0])
     else:
         f0 = torch.FloatTensor([0]) #dummy f0
 
-    assert(remel.shape[1] == f0.shape[0])
     torch.save([rewav, remel, f0], outpath)
 
 def get_f0(wave, sr=24000, frame_period=12.5, method='harvest'):

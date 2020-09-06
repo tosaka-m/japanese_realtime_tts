@@ -56,7 +56,7 @@ def main(config_path, test):
     train_dataloader = build_dataloader(train_list,
                                         batch_size=batch_size,
                                         num_workers=6,
-                                        dataset_config=config.get('dataset_parasm', {}),
+                                        dataset_config=config.get('dataset_params', {}),
                                         device=device)
 
     val_dataloader = build_dataloader(val_list,
@@ -64,7 +64,7 @@ def main(config_path, test):
                                       validation=True,
                                       num_workers=2,
                                       device=device,
-                                      dataset_config=config.get('dataset_parasm', {}))
+                                      dataset_config=config.get('dataset_params', {}))
 
     model = build_model(model_params=config['model_params'] or {})
     model.to(device)
