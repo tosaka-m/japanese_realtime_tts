@@ -89,10 +89,10 @@ def preprocess(path, outpath, to_melspec, sr, use_pitch=True):
     if use_pitch:
         f0 = get_f0(rewav.numpy(), sr, frame_period=1000*hop_length/sr)
         f0 = torch.from_numpy(f0).float()
-        assert(remel.shape[1] == f0.shape[0])
     else:
-        f0 = torch.FloatTensor([0]) #dummy f0
+        f0 = torch.FloatTensor([0] * remel.shape[1]) #dummy f0
 
+    assert(remel.shape[1] == f0.shape[0])
     torch.save([rewav, remel, f0], outpath)
 
 def get_f0(wave, sr=24000, frame_period=12.5, method='harvest'):
