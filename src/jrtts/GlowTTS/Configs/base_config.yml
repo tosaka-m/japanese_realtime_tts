@@ -37,4 +37,4 @@ model_params:
   gin_channels: 256
 
 optimizer_params:
-  lr: 0.001
+  lr: 0.0002
