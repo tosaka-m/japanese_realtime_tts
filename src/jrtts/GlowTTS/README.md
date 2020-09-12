@@ -68,7 +68,9 @@ see Notebooks/inference.ipynb
 
 ## Config
 
+
 |Name|Description|type|
+|:---|:---|:---|
 |log_dir|log out dirname|str|
 |save_freq|model is saved every save_freq epoch|int|
 |device|set cpu or cuda. only support single gpu training|str|
